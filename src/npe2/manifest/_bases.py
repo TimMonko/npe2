@@ -9,7 +9,7 @@ from pydantic import BaseModel, PrivateAttr
 # Prefer the libyaml-accelerated CSafeLoader when available
 try:
     from yaml import CSafeLoader as _BaseLoader
-except (ImportError, AttributeError):
+except ImportError:  # pyyaml built without libyaml
     from yaml import SafeLoader as _BaseLoader  # type: ignore[assignment]
 
 

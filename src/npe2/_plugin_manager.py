@@ -3,6 +3,7 @@ from __future__ import annotations
 import builtins
 import contextlib
 import os
+import sys
 import warnings
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Set
@@ -202,6 +203,16 @@ class PluginManagerEvents(SignalGroup):
     )
 
 
+def _is_npe1_adapter(manifest: PluginManifest) -> bool:
+    """Return True if `manifest` is an NPE1Adapter, without importing it.
+
+    The adapter module is only imported once an npe1 plugin is discovered, so
+    if it isn't in `sys.modules` yet, no adapter instance can exist.
+    """
+    mod = sys.modules.get("npe2.manifest._npe1_adapter")
+    return mod is not None and isinstance(manifest, mod.NPE1Adapter)
+
+
 class PluginManager:
     __instance: PluginManager | None = None  # a global instance
     _contrib: _ContributionsIndex
@@ -277,9 +288,7 @@ class PluginManager:
                 if (
                     result.manifest
                     and result.manifest.name not in self._manifests
-                    and (
-                        include_npe1 or type(result.manifest).__name__ != "NPE1Adapter"
-                    )
+                    and (include_npe1 or not _is_npe1_adapter(result.manifest))
                 ):
                     self.register(result.manifest, warn_disabled=False)
                     count += 1
@@ -333,7 +342,7 @@ class PluginManager:
                     "be indexed. Use `warn_disabled=False` to suppress this message.",
                     stacklevel=2,
                 )
-        elif type(manifest).__name__ == "NPE1Adapter":
+        elif _is_npe1_adapter(manifest):
             self._npe1_adapters.append(manifest)
         else:
             self._contrib.index_contributions(manifest)

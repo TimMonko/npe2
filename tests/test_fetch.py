@@ -1,4 +1,6 @@
 import os
+import subprocess
+import sys
 import urllib.request
 from importlib.metadata import PackageNotFoundError
 from unittest.mock import patch
@@ -289,3 +291,22 @@ display_name: Test Plugin
     # Test the function - it should find the napari.yaml first
     result = _get_manifest_from_zip_url("https://example.com/plugin.zip")
     assert result.name == "test-plugin"
+
+
+def test_fetch_functions_are_lazy():
+    import npe2
+
+    assert npe2.fetch_manifest is fetch_manifest
+    assert npe2.get_manifest_from_wheel is get_manifest_from_wheel
+    assert {"fetch_manifest", "get_manifest_from_wheel"} <= set(dir(npe2))
+    with pytest.raises(AttributeError, match="has no attribute 'not_a_thing'"):
+        _ = npe2.not_a_thing
+
+    # a fresh `import npe2` must not pull in the fetch or npe1 modules
+    code = (
+        "import sys, npe2; "
+        "loaded = {'npe2._inspection._fetch', 'npe2._inspection._from_npe1', "
+        "'npe2.manifest._npe1_adapter'} & set(sys.modules); "
+        "assert not loaded, loaded"
+    )
+    subprocess.run([sys.executable, "-c", code], check=True)
